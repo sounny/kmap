@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbital Logic Synthesizer</title>
+    <style>
+        /* --- General & Thematic Styling --- */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;400&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --primary-color: #1e293b;
+            --secondary-color: #334155;
+            --accent-color: #38bdf8;
+            --text-color: #e2e8f0;
+            --header-font: 'Orbitron', sans-serif;
+            --body-font: 'Roboto Mono', monospace;
+        }
+
+        body {
+            font-family: var(--body-font);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1200px;
+            background-color: var(--primary-color);
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid var(--secondary-color);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.1);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 15px;
+        }
+
+        header h1 {
+            font-family: var(--header-font);
+            color: var(--accent-color);
+            margin: 0;
+            font-size: 2.5em;
+            letter-spacing: 2px;
+        }
+        
+        header p {
+            color: #94a3b8;
+        }
+
+        /* --- Input Controls --- */
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: #cbd5e1;
+        }
+
+        select, input[type="text"] {
+            font-family: var(--body-font);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--secondary-color);
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 1em;
+        }
+        
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 5px var(--accent-color);
+        }
+
+        button {
+            font-family: var(--header-font);
+            padding: 12px 25px;
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 700;
+            transition: all 0.2s ease-in-out;
+            align-self: flex-end;
+        }
+
+        button:hover {
+            background-color: #7dd3fc;
+            box-shadow: 0 0 10px var(--accent-color);
+        }
+
+        /* --- Output Sections --- */
+        .outputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .output-box {
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--secondary-color);
+        }
+        
+        .output-box h2 {
+            font-family: var(--header-font);
+            color: var(--accent-color);
+            margin-top: 0;
+            border-bottom: 1px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+        
+        #expression-output {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px 0;
+            letter-spacing: 2px;
+        }
+        
+        /* --- Tables (Truth Table & K-Map) --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        th, td {
+            border: 1px solid var(--secondary-color);
+            padding: 8px;
+            text-align: center;
+        }
+        
+        th {
+            background-color: var(--secondary-color);
+            font-weight: 400;
+        }
+        
+        /* K-Map Specifics */
+        .k-map-container table td {
+            width: 50px;
+            height: 50px;
+            position: relative;
+        }
+        .k-map-container table td.header {
+            background-color: transparent;
+            border: none;
+            font-weight: bold;
+        }
+        .minterm-index {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 0.7em;
+            color: #64748b;
+        }
+        .k-map-val {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        /* --- Logic Diagram Canvas --- */
+        #logic-diagram {
+            width: 100%;
+            height: auto;
+            background-color: #0c1221;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Orbital Logic Synthesizer</h1>
+            <p>K-Map Calculator & Logic Circuit Generator</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="num-vars">Number of Variables:</label>
+                <select id="num-vars">
+                    <option value="2">2 (A, B)</option>
+                    <option value="3">3 (A, B, C)</option>
+                    <option value="4" selected>4 (A, B, C, D)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="minterms">Enter Minterms (e.g., 1, 4, 5, 9, 11, 15):</label>
+                <input type="text" id="minterms" placeholder="0, 2, 5, 7, 8...">
+            </div>
+            <button id="generate-btn">Synthesize</button>
+        </div>
+
+        <div id="results" style="display: none;">
+            <div class="output-box">
+                <h2>Simplified Boolean Expression</h2>
+                <div id="expression-output">Y = A'B + C</div>
+            </div>
+            
+            <div class="outputs">
+                <div class="output-box">
+                    <h2>Truth Table</h2>
+                    <div id="truth-table-container"></div>
+                </div>
+
+                <div class="output-box">
+                    <h2>Karnaugh Map</h2>
+                    <div class="k-map-container" id="k-map-container"></div>
+                </div>
+            </div>
+
+            <div class="output-box" style="margin-top: 25px;">
+                <h2>Logic Circuit Diagram</h2>
+                <canvas id="logic-diagram"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('generate-btn').addEventListener('click', main);
+
+        const VAR_NAMES = ['A', 'B', 'C', 'D'];
+        const GROUP_COLORS = ['rgba(56, 189, 248, 0.4)', 'rgba(239, 68, 68, 0.4)', 'rgba(52, 211, 153, 0.4)', 'rgba(250, 204, 21, 0.4)', 'rgba(168, 85, 247, 0.4)', 'rgba(236, 72, 153, 0.4)'];
+        
+        // --- Main Orchestrator Function ---
+        function main() {
+            const numVars = parseInt(document.getElementById('num-vars').value);
+            const mintermStr = document.getElementById('minterms').value;
+            const minterms = mintermStr.split(',').map(m => parseInt(m.trim())).filter(m => !isNaN(m));
+            
+            if (minterms.length === 0 && mintermStr.trim() !== '0') {
+                alert("Please enter valid, comma-separated minterm numbers.");
+                return;
+            }
+            
+            document.getElementById('results').style.display = 'block';
+
+            // 1. Generate Truth Table
+            generateTruthTable(numVars, minterms);
+
+            // 2. Generate and Solve K-Map
+            const kmapData = createKMapData(numVars, minterms);
+            const groups = solveKMap(kmapData, numVars);
+            
+            // 3. Draw K-Map with highlighted groups
+            drawKMap(kmapData, numVars, groups);
+            
+            // 4. Generate Boolean Expression
+            const expression = generateExpression(groups, numVars);
+            document.getElementById('expression-output').innerHTML = `Y = ${expression}`;
+
+            // 5. Draw Logic Circuit
+            drawLogicCircuit(expression, numVars);
+        }
+
+        // --- 1. Truth Table Generation ---
+        function generateTruthTable(numVars, minterms) {
+            const container = document.getElementById('truth-table-container');
+            const rows = 2 ** numVars;
+            let table = '<table><thead><tr>';
+            for (let i = 0; i < numVars; i++) {
+                table += `<th>${VAR_NAMES[i]}</th>`;
+            }
+            table += '<th>Y</th></tr></thead><tbody>';
+
+            for (let i = 0; i < rows; i++) {
+                table += '<tr>';
+                const binary = i.toString(2).padStart(numVars, '0');
+                for (let j = 0; j < numVars; j++) {
+                    table += `<td>${binary[j]}</td>`;
+                }
+                const output = minterms.includes(i) ? 1 : 0;
+                table += `<td><b>${output}</b></td>`;
+                table += '</tr>';
+            }
+            table += '</tbody></table>';
+            container.innerHTML = table;
+        }
+
+        // --- 2. K-Map Data Structure & Solver ---
+        function createKMapData(numVars, minterms) {
+            const dimensions = {
+                2: { rows: 2, cols: 2 },
+                3: { rows: 2, cols: 4 },
+                4: { rows: 4, cols: 4 }
+            };
+            const { rows, cols } = dimensions[numVars];
+            const map = Array(rows).fill(null).map(() => Array(cols).fill(0));
+            const mintermMap = getMintermToKMapCoords(numVars);
+            
+            minterms.forEach(m => {
+                if (mintermMap[m]) {
+                    const { r, c } = mintermMap[m];
+                    map[r][c] = 1;
+                }
+            });
+            return map;
+        }
+        
+        function getMintermToKMapCoords(numVars) {
+            const map = {};
+            const grayCode = ['00', '01', '11', '10'];
+            if (numVars === 2) { // AB
+                for(let r=0; r<2; r++) for(let c=0; c<2; c++) map[parseInt(`${r}${c}`,2)] = {r,c};
+            } else if (numVars === 3) { // A, BC
+                for(let r=0; r<2; r++) for(let c=0; c<4; c++) map[parseInt(`${r}${grayCode[c]}`,2)] = {r,c};
+            } else if (numVars === 4) { // AB, CD
+                for(let r=0; r<4; r++) for(let c=0; c<4; c++) map[parseInt(`${grayCode[r]}${grayCode[c]}`,2)] = {r,c};
+            }
+            return map;
+        }
+
+        function solveKMap(kmap, numVars) {
+            const rows = kmap.length;
+            const cols = kmap[0].length;
+            const covered = Array(rows).fill(null).map(() => Array(cols).fill(false));
+            const groups = [];
+
+            const findGroups = (sizeR, sizeC) => {
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        let isGroup = true;
+                        const groupCoords = [];
+                        for (let dr = 0; dr < sizeR; dr++) {
+                            for (let dc = 0; dc < sizeC; dc++) {
+                                const nr = (r + dr) % rows;
+                                const nc = (c + dc) % cols;
+                                if (kmap[nr][nc] !== 1) {
+                                    isGroup = false;
+                                    break;
+                                }
+                                groupCoords.push({ r: nr, c: nc });
+                            }
+                            if (!isGroup) break;
+                        }
+
+                        if (isGroup) {
+                            let allUncovered = groupCoords.some(coord => !covered[coord.r][coord.c]);
+                            if (allUncovered) {
+                                groups.push(groupCoords);
+                                groupCoords.forEach(coord => covered[coord.r][coord.c] = true);
+                            }
+                        }
+                    }
+                }
+            };
+            
+            // This is a greedy algorithm: find largest groups first
+            const groupSizes = {
+                4: [[4,4], [8,2], [2,8], [4,2], [2,4], [1,8], [8,1], [4,1], [1,4], [2,2], [2,1], [1,2], [1,1]],
+                3: [[4,2], [2,4], [2,2], [4,1], [1,4], [2,1], [1,2], [1,1]],
+                2: [[2,2], [2,1], [1,2], [1,1]]
+            };
+            
+            // Adjust for wraparound limitations in simple implementation
+            const validSizes = {
+                4: [[4, 4], [4, 2], [2, 4], [1, 4], [4, 1], [2, 2], [2, 1], [1, 2], [1, 1]],
+                3: [[1, 4], [2, 2], [1, 2], [2, 1], [1, 1]],
+                2: [[2, 2], [1, 2], [2, 1], [1, 1]]
+            }
+
+            validSizes[numVars].forEach(([sizeR, sizeC]) => {
+                if(sizeR > rows || sizeC > cols) return;
+                findGroups(sizeR, sizeC);
+            });
+
+            // Essential Prime Implicants logic (simplified)
+            // Remove redundant groups (groups fully covered by other larger groups)
+            let finalGroups = [];
+            let onesToCover = [];
+            for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (kmap[r][c] === 1) onesToCover.push({r,c});
+            
+            while(onesToCover.length > 0) {
+                let bestGroup = null;
+                let maxCovered = 0;
+
+                groups.forEach(group => {
+                    let newlyCovered = 0;
+                    group.forEach(coord => {
+                        if (onesToCover.find(p => p.r === coord.r && p.c === coord.c)) {
+                            newlyCovered++;
+                        }
+                    });
+
+                    if (newlyCovered > maxCovered) {
+                        maxCovered = newlyCovered;
+                        bestGroup = group;
+                    }
+                });
+
+                if (bestGroup) {
+                    finalGroups.push(bestGroup);
+                    onesToCover = onesToCover.filter(p => !bestGroup.find(g => g.r === p.r && g.c === p.c));
+                } else {
+                    break; // No more groups can cover remaining ones
+                }
+            }
+            
+            return finalGroups;
+        }
+
+        // --- 3. K-Map Drawing ---
+        function drawKMap(kmapData, numVars, groups) {
+            const container = document.getElementById('k-map-container');
+            const grayCode = ['00', '01', '11', '10'];
+            
+            const dimensions = {
+                2: { rows: 2, cols: 2, rowH: ['0', '1'], colH: ['0', '1'], rowV: 'A', colV: 'B' },
+                3: { rows: 2, cols: 4, rowH: ['0', '1'], colH: grayCode, rowV: 'A', colV: 'BC' },
+                4: { rows: 4, cols: 4, rowH: grayCode, colH: grayCode, rowV: 'AB', colV: 'CD' }
+            };
+
+            const d = dimensions[numVars];
+            let table = '<table><tr>';
+            table += `<td class="header">${d.rowV}\\${d.colV}</td>`;
+            d.colH.forEach(h => table += `<td class="header">${h}</td>`);
+            table += '</tr>';
+            
+            const mintermMap = getMintermToKMapCoords(numVars);
+            const reverseMintermMap = Object.entries(mintermMap).reduce((acc, [key, val]) => {
+                acc[`${val.r},${val.c}`] = key;
+                return acc;
+            }, {});
+
+            for (let r = 0; r < d.rows; r++) {
+                table += `<tr><td class="header">${d.rowH[r]}</td>`;
+                for (let c = 0; c < d.cols; c++) {
+                    const mintermIndex = reverseMintermMap[`${r},${c}`];
+                    let styles = '';
+                    groups.forEach((group, i) => {
+                        if (group.find(coord => coord.r === r && coord.c === c)) {
+                             styles += `background-color: ${GROUP_COLORS[i % GROUP_COLORS.length]};`;
+                        }
+                    });
+                    table += `<td style="${styles}">
+                                <span class="minterm-index">${mintermIndex}</span>
+                                <span class="k-map-val">${kmapData[r][c]}</span>
+                              </td>`;
+                }
+                table += '</tr>';
+            }
+            table += '</table>';
+            container.innerHTML = table;
+        }
+        
+        // --- 4. Expression Generation ---
+        function generateExpression(groups, numVars) {
+            if (groups.length === 0) return '0';
+            
+            let allCovered = true;
+            const size = 2 ** numVars;
+            for(let i=0; i < size; i++){
+                if(!groups.flat().some(cell => cell.mintermIndex === i)) { // Needs mintermIndex added to cell
+                     // A bit more complex, let's just check for full map
+                }
+            }
+
+            const isFullMap = groups.length === 1 && groups[0].length === (2**numVars);
+            if (isFullMap) return '1';
+
+            const terms = groups.map(group => groupToTerm(group, numVars));
+            return terms.join(' + ');
+        }
+        
+        function groupToTerm(group, numVars) {
+            const grayCode = ['00', '01', '11', '10'];
+            const binaries = group.map(coord => {
+                let binStr = '';
+                if (numVars === 2) binStr = `${coord.r.toString(2)}${coord.c.toString(2)}`;
+                if (numVars === 3) binStr = `${coord.r.toString(2)}${grayCode[coord.c]}`;
+                if (numVars === 4) binStr = `${grayCode[coord.r]}${grayCode[coord.c]}`;
+                return binStr;
+            });
+
+            let term = '';
+            for (let i = 0; i < numVars; i++) {
+                const firstBit = binaries[0][i];
+                if (binaries.every(b => b[i] === firstBit)) {
+                    term += VAR_NAMES[i] + (firstBit === '0' ? "'" : "");
+                }
+            }
+            return term || '1'; // Should not happen with proper grouping
+        }
+
+        // --- 5. Logic Circuit Drawing ---
+        function drawLogicCircuit(expression, numVars) {
+            const canvas = document.getElementById('logic-diagram');
+            const ctx = canvas.getContext('2d');
+            
+            const terms = expression === '0' || expression === '1' ? [] : expression.split(' + ');
+            const numAndGates = terms.length;
+
+            // Dynamic canvas sizing
+            const height = Math.max(250, (numVars * 40) + (numAndGates * 50));
+            const width = 800;
+            canvas.width = width;
+            canvas.height = height;
+
+            // Clear canvas
+            ctx.fillStyle = '#0c1221';
+            ctx.fillRect(0, 0, width, height);
+
+            // Style
+            ctx.strokeStyle = var(--text-color);
+            ctx.fillStyle = var(--text-color);
+            ctx.lineWidth = 2;
+            ctx.font = '16px Roboto Mono';
+            
+            if (expression === '0') {
+                ctx.fillText("Y = 0", width/2 - 20, height/2);
+                return;
+            }
+            if (expression === '1') {
+                ctx.fillText("Y = 1 (Vcc)", width/2 - 40, height/2);
+                return;
+            }
+
+            const startX = 50;
+            const inputYStep = 40;
+            const notGateX = 120;
+            const andGateX = 350;
+            const orGateX = 600;
+
+            // --- Draw input lines & NOT gates ---
+            const inputs = {};
+            for (let i = 0; i < numVars; i++) {
+                const y = 50 + i * inputYStep;
+                const name = VAR_NAMES[i];
+                // Direct line
+                ctx.beginPath();
+                ctx.moveTo(startX, y);
+                ctx.lineTo(notGateX - 20, y);
+                ctx.stroke();
+                ctx.fillText(name, startX - 25, y + 5);
+                inputs[name] = { x: notGateX - 20, y: y };
+
+                // Inverted line (through NOT gate)
+                drawNotGate(ctx, notGateX, y);
+                inputs[name + "'"] = { x: notGateX + 30, y: y };
+            }
+            
+            // --- Draw AND gates ---
+            const andOutputs = [];
+            const andGateYStep = (height - 100) / Math.max(1, numAndGates);
+            terms.forEach((term, i) => {
+                const y = 75 + i * andGateYStep;
+                const variables = term.match(/.{1,2}/g); // Split "A'B" into ["A'", "B"]
+                drawAndGate(ctx, andGateX, y, variables.length);
+                
+                // Connect inputs to AND gate
+                variables.forEach((variable, j) => {
+                    const inputPos = inputs[variable];
+                    const andInputY = y - 15 + j * (30 / Math.max(1, variables.length -1));
+                    ctx.beginPath();
+                    ctx.moveTo(inputPos.x, inputPos.y);
+                    ctx.lineTo(inputPos.x, andInputY);
+                    ctx.lineTo(andGateX - 20, andInputY);
+                    ctx.stroke();
+                    ctx.beginPath(); // Small dot for connection
+                    ctx.arc(inputPos.x, andInputY, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+                andOutputs.push({ x: andGateX + 40, y: y });
+            });
+
+            // --- Draw final OR gate ---
+            if (numAndGates > 1) {
+                const orGateY = height / 2;
+                drawOrGate(ctx, orGateX, orGateY, numAndGates);
+                // Connect AND outputs to OR gate
+                andOutputs.forEach((pos, i) => {
+                    const orInputY = orGateY - 20 + i * (40 / Math.max(1, numAndGates - 1));
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                    ctx.lineTo(orGateX - 30, pos.y);
+                    ctx.lineTo(orGateX - 30, orInputY);
+                    ctx.lineTo(orGateX - 20, orInputY);
+                    ctx.stroke();
+                });
+                // Final output
+                ctx.beginPath();
+                ctx.moveTo(orGateX + 40, orGateY);
+                ctx.lineTo(width - 50, orGateY);
+                ctx.stroke();
+                ctx.fillText("Y", width - 40, orGateY + 5);
+            } else if (numAndGates === 1) {
+                // If only one term, just pass it through
+                ctx.beginPath();
+                ctx.moveTo(andOutputs[0].x, andOutputs[0].y);
+                ctx.lineTo(width - 50, andOutputs[0].y);
+                ctx.stroke();
+                ctx.fillText("Y", width - 40, andOutputs[0].y + 5);
+            }
+        }
+        
+        // --- Canvas Drawing Helper Functions ---
+        function drawNotGate(ctx, x, y) {
+            ctx.beginPath();
+            ctx.moveTo(x - 20, y);
+            ctx.lineTo(x, y);
+            ctx.moveTo(x, y - 10);
+            ctx.lineTo(x + 20, y);
+            ctx.lineTo(x, y + 10);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(x + 25, y, 5, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.moveTo(x + 30, y);
+            ctx.lineTo(x + 50, y);
+            ctx.stroke();
+        }
+
+        function drawAndGate(ctx, x, y, numInputs) {
+            const height = Math.max(30, numInputs * 15);
+            ctx.beginPath();
+            ctx.moveTo(x - 20, y - height / 2);
+            ctx.lineTo(x, y - height / 2);
+            ctx.arc(x, y, height / 2, -Math.PI / 2, Math.PI / 2);
+            ctx.lineTo(x - 20, y + height / 2);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.moveTo(x + height / 2, y);
+            ctx.lineTo(x + 40, y);
+            ctx.stroke();
+        }
+
+        function drawOrGate(ctx, x, y, numInputs) {
+            const height = Math.max(40, numInputs * 20);
+            const ctrlOffsetX = -15;
+            ctx.beginPath();
+            ctx.moveTo(x - 20, y - height / 2);
+            ctx.quadraticCurveTo(x + ctrlOffsetX, y - height / 4, x, y - height / 2);
+            ctx.quadraticCurveTo(x + 25, y, x, y + height / 2);
+            ctx.quadraticCurveTo(x + ctrlOffsetX, y + height / 4, x - 20, y + height / 2);
+            ctx.quadraticCurveTo(x-10, y, x-20, y-height/2)
+            ctx.stroke();
+            ctx.moveTo(x + 20, y);
+            ctx.lineTo(x + 40, y);
+            ctx.stroke();
+        }
+
+    </script>
+</body>
+</html>
