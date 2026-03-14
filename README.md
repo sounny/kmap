@@ -7,6 +7,8 @@ The Orbital Logic Synthesizer is an interactive web application for designing an
 - **Expression Parsing:** Accept boolean expressions, minterm lists, or truth tables and convert them into simplified sum-of-products forms.
 - **Gate Diagram Rendering:** Visualize the simplified logic as a digital circuit diagram drawn directly onto an HTML5 canvas.
 - **Theme & UI:** Styled interface with responsive layout optimized for desktop and tablet viewports.
+- **Guided Teaching Mode:** Includes step-by-step learning walkthrough cards, literal-savings metrics, and quick self-check prompts.
+- **Lesson Presets:** One-click example sets demonstrate XOR, majority logic, and wraparound grouping behavior.
 
 ## Getting Started
 1. Clone or download this repository.
