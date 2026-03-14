@@ -76,6 +76,12 @@
             flex-direction: column;
         }
 
+        .control-group-inline {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
         label {
             margin-bottom: 8px;
             font-size: 0.9em;
@@ -197,6 +203,27 @@
             border: 1px solid rgba(56, 189, 248, 0.55);
             font-size: 0.8em;
         }
+
+        .quiz-wrap {
+            margin-top: 10px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px dashed #64748b;
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .quiz-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .quiz-actions button {
+            align-self: auto;
+            padding: 8px 14px;
+            font-size: 0.82em;
+        }
         
         /* --- Tables (Truth Table & K-Map) --- */
         table {
@@ -270,6 +297,13 @@
                 <label for="minterms">Enter Minterms (e.g., 1, 4, 5, 9, 11, 15):</label>
                 <input type="text" id="minterms" placeholder="0, 2, 5, 7, 8...">
             </div>
+            <div class="control-group">
+                <label for="lesson-presets">Try a teaching preset:</label>
+                <div class="control-group-inline">
+                    <select id="lesson-presets"></select>
+                    <button id="load-preset-btn" type="button">Load</button>
+                </div>
+            </div>
             <button id="generate-btn">Synthesize</button>
         </div>
 
@@ -306,8 +340,14 @@
 
     <script>
         document.getElementById('generate-btn').addEventListener('click', main);
+        document.getElementById('load-preset-btn').addEventListener('click', loadLessonPreset);
 
         const VAR_NAMES = ['A', 'B', 'C', 'D'];
+        const LESSON_PRESETS = [
+            { name: '2-variable: XOR pattern', vars: 2, minterms: [1, 2] },
+            { name: '3-variable: Majority logic', vars: 3, minterms: [3, 5, 6, 7] },
+            { name: '4-variable: Wraparound grouping', vars: 4, minterms: [0, 2, 8, 10, 5, 7, 13, 15] }
+        ];
         const GROUP_COLORS = ['rgba(56, 189, 248, 0.4)', 'rgba(239, 68, 68, 0.4)', 'rgba(52, 211, 153, 0.4)', 'rgba(250, 204, 21, 0.4)', 'rgba(168, 85, 247, 0.4)', 'rgba(236, 72, 153, 0.4)'];
         
         // --- Main Orchestrator Function ---
@@ -340,6 +380,23 @@
 
             // 5. Draw Logic Circuit
             drawLogicCircuit(expression, numVars);
+        }
+
+        function initPresetControl() {
+            const presetSelect = document.getElementById('lesson-presets');
+            presetSelect.innerHTML = LESSON_PRESETS
+                .map((preset, idx) => `<option value="${idx}">${preset.name}</option>`)
+                .join('');
+        }
+
+        function loadLessonPreset() {
+            const presetSelect = document.getElementById('lesson-presets');
+            const selectedPreset = LESSON_PRESETS[parseInt(presetSelect.value, 10)];
+            if (!selectedPreset) return;
+
+            document.getElementById('num-vars').value = String(selectedPreset.vars);
+            document.getElementById('minterms').value = selectedPreset.minterms.join(', ');
+            main();
         }
 
         // --- 1. Truth Table Generation ---
@@ -553,29 +610,35 @@
 
         function renderTeachingPanel(numVars, minterms, groups, expression) {
             const container = document.getElementById('teaching-container');
-            const canonicalSOP = minterms
-                .slice()
-                .sort((a, b) => a - b)
-                .map(m => `m${m}`)
-                .join(' + ') || '0';
+            const canonicalTerms = minterms.slice().sort((a, b) => a - b).map(m => `m${m}`);
+            const canonicalSOP = canonicalTerms.join(' + ') || '0';
 
             const termBreakdown = groups.map((group, idx) => {
                 const term = groupToTerm(group, numVars);
                 const cells = [...new Set(group.map(coord => getMintermFromCoord(coord, numVars)))].sort((a, b) => a - b);
-                return { idx, term, cells, size: group.length };
+                const removedLiterals = numVars - (term.match(/[A-D]/g)?.length || 0);
+                return { idx, term, cells, size: group.length, removedLiterals };
             });
 
+            const simplifiedLiterals = expression === '0' || expression === '1'
+                ? 0
+                : expression.replace(/\s*\+\s*/g, '').replace(/'/g, '').length;
+            const canonicalLiterals = canonicalTerms.length * numVars;
+            const literalSavings = Math.max(0, canonicalLiterals - simplifiedLiterals);
+
             const walkthrough = termBreakdown.length
-                ? `<ul>${termBreakdown.map(item => `<li><span class="pill">Group ${item.idx + 1}</span> ${item.cells.map(m => `m${m}`).join(', ')} → term <b>${item.term}</b> (size ${item.size})</li>`).join('')}</ul>`
+                ? `<ul>${termBreakdown.map(item => `<li><span class="pill">Group ${item.idx + 1}</span> ${item.cells.map(m => `m${m}`).join(', ')} → term <b>${item.term}</b> (size ${item.size}, removes ${item.removedLiterals} literal${item.removedLiterals === 1 ? '' : 's'})</li>`).join('')}</ul>`
                 : '<p>No groups were formed, so the output stays <b>0</b>.</p>';
 
             const variableHints = VAR_NAMES.slice(0, numVars).map(v => `<span class="pill">${v}</span>`).join('');
+            const quiz = buildQuickQuiz(numVars, minterms);
 
             container.innerHTML = `
                 <div class="teach-card">
                     <h3>Step 1: Canonical Form</h3>
                     <p>From your minterms, the unsimplified Sum of Products is:</p>
                     <p><b>Y = ${canonicalSOP}</b></p>
+                    <p class="helper-text">Canonical terms: <b>${canonicalTerms.length}</b> · Canonical literals: <b>${canonicalLiterals}</b></p>
                 </div>
                 <div class="teach-card">
                     <h3>Step 2: Grouping Strategy</h3>
@@ -587,8 +650,39 @@
                     <p>Variables in this problem:</p>
                     <p>${variableHints}</p>
                     <p>Final minimized expression: <b>Y = ${expression}</b></p>
+                    <p class="helper-text">Simplified literals: <b>${simplifiedLiterals}</b> · Savings: <b>${literalSavings}</b> literal${literalSavings === 1 ? '' : 's'}</p>
+                </div>
+                <div class="teach-card">
+                    <h3>Step 4: Quick Check</h3>
+                    <p>${quiz.question}</p>
+                    <div class="quiz-wrap">
+                        <div><span class="pill">Expected Y</span> <span id="quiz-answer">?</span></div>
+                        <div class="quiz-actions">
+                            <button type="button" id="reveal-quiz-btn">Reveal Answer</button>
+                            <button type="button" id="new-quiz-btn">New Check</button>
+                        </div>
+                    </div>
                 </div>
             `;
+
+            document.getElementById('reveal-quiz-btn').addEventListener('click', () => {
+                document.getElementById('quiz-answer').textContent = quiz.answer;
+            });
+            document.getElementById('new-quiz-btn').addEventListener('click', () => {
+                renderTeachingPanel(numVars, minterms, groups, expression);
+            });
+        }
+
+        function buildQuickQuiz(numVars, minterms) {
+            const maxRow = 2 ** numVars;
+            const sample = Math.floor(Math.random() * maxRow);
+            const bits = sample.toString(2).padStart(numVars, '0');
+            const assignment = bits.split('').map((bit, idx) => `${VAR_NAMES[idx]}=${bit}`).join(', ');
+            const isOne = minterms.includes(sample);
+            return {
+                question: `Predict the output for input ${assignment} (minterm m${sample}).`,
+                answer: isOne ? '1' : '0'
+            };
         }
 
         function getMintermFromCoord(coord, numVars) {
@@ -774,6 +868,8 @@
             ctx.lineTo(x + 40, y);
             ctx.stroke();
         }
+
+        initPresetControl();
 
     </script>
 </body>

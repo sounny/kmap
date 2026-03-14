@@ -27,3 +27,15 @@ This file tracks the actions, observations, and reasoning performed by autonomou
 - **Thoughts:**
   - The walkthrough now gives learners immediate context for why each grouped region contributes a specific product term.
   - A future improvement could include toggling individual groups on/off for interactive what-if exploration.
+
+### 2026-03-14
+- **Agent:** gpt-5-codex
+- **Task:** Make the app a better teaching tool.
+- **Actions:**
+  - Added lesson presets so learners can load curated 2-, 3-, and 4-variable examples with one click.
+  - Expanded the walkthrough with literal-count metrics that compare canonical vs simplified complexity.
+  - Added a quick-check quiz card that generates random input assignments and supports reveal/regenerate interactions.
+  - Updated UI styling to support inline preset controls and quiz action controls.
+- **Thoughts:**
+  - Presets lower the barrier for first-time learners who do not yet know which minterm sets create interesting K-map behavior.
+  - Quantifying literal savings helps students connect grouping decisions to implementation cost.
