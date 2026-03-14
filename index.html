@@ -147,6 +147,56 @@
             padding: 20px 0;
             letter-spacing: 2px;
         }
+
+        .helper-text {
+            margin-top: 10px;
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+
+        .teach-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .teach-card {
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--secondary-color);
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .teach-card h3 {
+            margin: 0 0 8px;
+            color: #bae6fd;
+            font-family: var(--header-font);
+            letter-spacing: 1px;
+            font-size: 1em;
+        }
+
+        .teach-card p,
+        .teach-card li {
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 0.88em;
+            line-height: 1.55;
+        }
+
+        .teach-card ul {
+            margin: 6px 0 0;
+            padding-left: 18px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px 6px 2px 0;
+            border-radius: 999px;
+            background-color: rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.55);
+            font-size: 0.8em;
+        }
         
         /* --- Tables (Truth Table & K-Map) --- */
         table {
@@ -227,6 +277,12 @@
             <div class="output-box">
                 <h2>Simplified Boolean Expression</h2>
                 <div id="expression-output">Y = A'B + C</div>
+                <p class="helper-text" id="expression-note">Tip: Larger highlighted K-map groups remove more variables and produce simpler logic.</p>
+            </div>
+
+            <div class="output-box">
+                <h2>Learning Walkthrough</h2>
+                <div id="teaching-container" class="teach-grid"></div>
             </div>
             
             <div class="outputs">
@@ -280,6 +336,7 @@
             // 4. Generate Boolean Expression
             const expression = generateExpression(groups, numVars);
             document.getElementById('expression-output').innerHTML = `Y = ${expression}`;
+            renderTeachingPanel(numVars, minterms, groups, expression);
 
             // 5. Draw Logic Circuit
             drawLogicCircuit(expression, numVars);
@@ -493,6 +550,52 @@
             const terms = groups.map(group => groupToTerm(group, numVars));
             return terms.join(' + ');
         }
+
+        function renderTeachingPanel(numVars, minterms, groups, expression) {
+            const container = document.getElementById('teaching-container');
+            const canonicalSOP = minterms
+                .slice()
+                .sort((a, b) => a - b)
+                .map(m => `m${m}`)
+                .join(' + ') || '0';
+
+            const termBreakdown = groups.map((group, idx) => {
+                const term = groupToTerm(group, numVars);
+                const cells = [...new Set(group.map(coord => getMintermFromCoord(coord, numVars)))].sort((a, b) => a - b);
+                return { idx, term, cells, size: group.length };
+            });
+
+            const walkthrough = termBreakdown.length
+                ? `<ul>${termBreakdown.map(item => `<li><span class="pill">Group ${item.idx + 1}</span> ${item.cells.map(m => `m${m}`).join(', ')} → term <b>${item.term}</b> (size ${item.size})</li>`).join('')}</ul>`
+                : '<p>No groups were formed, so the output stays <b>0</b>.</p>';
+
+            const variableHints = VAR_NAMES.slice(0, numVars).map(v => `<span class="pill">${v}</span>`).join('');
+
+            container.innerHTML = `
+                <div class="teach-card">
+                    <h3>Step 1: Canonical Form</h3>
+                    <p>From your minterms, the unsimplified Sum of Products is:</p>
+                    <p><b>Y = ${canonicalSOP}</b></p>
+                </div>
+                <div class="teach-card">
+                    <h3>Step 2: Grouping Strategy</h3>
+                    <p>Groups use powers of two (1, 2, 4, 8...) and may wrap around map edges. Larger groups remove more literals.</p>
+                    ${walkthrough}
+                </div>
+                <div class="teach-card">
+                    <h3>Step 3: Simplified Result</h3>
+                    <p>Variables in this problem:</p>
+                    <p>${variableHints}</p>
+                    <p>Final minimized expression: <b>Y = ${expression}</b></p>
+                </div>
+            `;
+        }
+
+        function getMintermFromCoord(coord, numVars) {
+            const mapping = getMintermToKMapCoords(numVars);
+            const found = Object.entries(mapping).find(([, val]) => val.r === coord.r && val.c === coord.c);
+            return found ? parseInt(found[0], 10) : -1;
+        }
         
         function groupToTerm(group, numVars) {
             const grayCode = ['00', '01', '11', '10'];
@@ -533,8 +636,8 @@
             ctx.fillRect(0, 0, width, height);
 
             // Style
-            ctx.strokeStyle = var(--text-color);
-            ctx.fillStyle = var(--text-color);
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.fillStyle = '#e2e8f0';
             ctx.lineWidth = 2;
             ctx.font = '16px Roboto Mono';
             
